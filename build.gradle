@@ -1,7 +1,9 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.5.0'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.3.7'
+    id 'io.spring.dependency-management' version '1.1.6'
+    // Protobuf 컴파일을 위한 플러그인 - .proto 파일을 Java 클래스로 자동 변환
+    id 'com.google.protobuf' version '0.9.4'
 }
 
 group = 'com.example'
@@ -23,29 +25,123 @@ repositories {
     mavenCentral()
 }
 
+// Spring Cloud와 gRPC 버전을 명시적으로 관리
 ext {
-    set('springCloudVersion', "2025.0.0")
+    set('springCloudVersion', "2023.0.3") // Spring Boot 3.3.x와 호환되는 Spring Cloud 버전
+    set('grpcVersion', "1.60.1") // 안정적인 gRPC 버전
+    set('grpcSpringBootStarterVersion', "3.1.0.RELEASE") // Spring Boot 3.x 호환 버전
+    set('protobufVersion', "3.25.1") // 최신 안정 Protobuf 버전
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    // === Spring Boot Core ===
+    implementation 'org.springframework.boot:spring-boot-starter-webflux' // 비동기 웹 프레임워크
+    implementation 'org.springframework.boot:spring-boot-starter-aop' // AOP 지원
+
+    // === Spring Security ===
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.security:spring-security-config'
+
+    // === Spring Cloud Gateway ===
+    // 참고: Spring Cloud Gateway는 WebFlux 기반이므로 MVC와 혼용하면 안됨
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
-    implementation 'org.springframework.cloud:spring-cloud-starter-gateway-server-webmvc'
+
+    // === Database & JPA ===
+    //implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    //implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    //runtimeOnly 'org.postgresql:postgresql' // 런타임에만 필요
+
+    // === Redis Cache ===
+    //implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    //implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive' // WebFlux와 함께 사용
+
+    // === gRPC Dependencies ===
+    // Spring Boot Starter for gRPC - 자동 설정과 통합 제공
+    //implementation "net.devh:grpc-server-spring-boot-starter:${grpcSpringBootStarterVersion}"
+    //implementation "net.devh:grpc-client-spring-boot-starter:${grpcSpringBootStarterVersion}"
+
+    // Core gRPC libraries - grpc-all 대신 필요한 모듈만 선택적으로 포함
+    //implementation "io.grpc:grpc-netty-shaded:${grpcVersion}" // Netty 기반 전송 계층
+    //implementation "io.grpc:grpc-protobuf:${grpcVersion}" // Protobuf 메시지 직렬화
+    //implementation "io.grpc:grpc-stub:${grpcVersion}" // 생성된 스텁 클래스 지원
+    //implementation "io.grpc:grpc-services:${grpcVersion}" // Health check, Reflection 등 부가 서비스
+
+    // === Protobuf ===
+    implementation "com.google.protobuf:protobuf-java:${protobufVersion}"
+    implementation "com.google.protobuf:protobuf-java-util:${protobufVersion}" // JSON 변환 등 유틸리티
+
+    // Jakarta Annotation API - Spring Boot 3.x에서는 javax 대신 jakarta 사용
+    implementation 'jakarta.annotation:jakarta.annotation-api'
+
+    // === Monitoring & Metrics ===
+    implementation 'org.springframework.boot:spring-boot-starter-actuator' // 애플리케이션 모니터링
+    implementation 'io.micrometer:micrometer-core'
+    implementation 'io.micrometer:micrometer-registry-prometheus' // Prometheus 메트릭 수집
+
+    // === JSON & XML Processing ===
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310' // Java 8 시간 API 지원
+
+    // === Development Tools ===
     compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     annotationProcessor 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools' // 개발 시 자동 재시작
+
+    // === Testing ===
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'io.projectreactor:reactor-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'io.projectreactor:reactor-test' // WebFlux 테스트 지원
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}" // gRPC 서비스 테스트
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// Spring Cloud 의존성 관리 - 버전 호환성 보장
 dependencyManagement {
     imports {
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
     }
 }
 
+// Protobuf 컴파일 설정 - .proto 파일을 Java 코드로 변환
+protobuf {
+    protoc {
+        // Protobuf 컴파일러 설정
+        artifact = "com.google.protobuf:protoc:${protobufVersion}"
+    }
+    plugins {
+        // gRPC Java 플러그인 - 서비스 스텁 생성
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {} // 모든 .proto 파일에 대해 gRPC 플러그인 적용
+        }
+    }
+}
+
+// 테스트 설정
 tasks.named('test') {
     useJUnitPlatform()
+    // 테스트 시 시스템 속성 전달
+    systemProperty 'spring.profiles.active', 'test'
+}
+
+// 컴파일 옵션 설정
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-parameters'] // 매개변수 이름 보존
+}
+
+//jar {
+//    enabled = false // Spring Boot의 bootJar만 사용
+//}
+
+// 애플리케이션 실행 설정
+bootRun {
+    // 개발 시 활성 프로필 설정
+    systemProperty 'spring.profiles.active', 'local'
 }
