@@ -1,0 +1,41 @@
+# 개발 환경에서는 빠른 테스트를 위해 타임아웃을 짧게 설정
+spring:
+  cloud:
+    gateway:
+      httpclient:
+        # HTTP 클라이언트 연결 타임아웃 (milliseconds)
+        connect-timeout: 3000
+        # 응답 타임아웃 (밀리초)
+        response-timeout: 5s
+        pool:
+          max-connections: 100
+          # 연결 획득 타임아웃
+          acquire-timeout: 2000
+
+
+logging:
+  level:
+    root: INFO
+    # Gateway 모든 로그를 DEBUG level로 설정
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway.route: DEBUG
+    org.springframework.cloud.gateway.filter: DEBUG
+    org.springframework.cloud.gateway.handler: DEBUG
+    reactor.netty.http.client: DEBUG
+    reactor.netty.http.server: DEBUG
+    com.api.gateway: DEBUG
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+
+
+
+app:
+  # 개발 환경에서는 보안을 느슨하게 설정
+  security:
+    enabled: false # 개발 중에는 인증/인가 비활성화
+  # 테스트 데이터 로드 여부
+  test-data:
+    enabled: true
+  # 캐시를 비활성화하여 즉시 반영되도록 설정
+  cache:
+    enabled: false
