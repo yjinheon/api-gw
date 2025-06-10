@@ -16,8 +16,10 @@ public class GatewayConfig {
                         .path("/api/test/**")
                         .filters(f -> f
                                 .stripPrefix(2) // "/api/test" 제거하고 뒤의 경로만 전달
-                                .addRequestHeader("X-Gateway", "Spring-Cloud-Gateway")
-                                .addResponseHeader("X-Response-Time", "Gateway-Response")
+                                .addRequestHeader("X-Gateway-Route", "advanced-test")
+                                .addRequestHeader("X-Processing-Node", "gateway-node-1")
+                                .addResponseHeader("X-Processed-By", "Spring-Cloud-Gateway")
+                                .retry(3)
                         ).uri("https://httpbin.org")
                 )
                 //  2nd route: /api/echo/** -> echo server
@@ -34,6 +36,28 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .addResponseHeader("X-Gateway-Default", "true")
                         ).uri("https://httpbin.org"))
+
+                // test: fast response
+                .route("fast-test-route", r ->
+                        r.path("/api/fast/**")
+                                .filters(f ->
+                                        f.stripPrefix(2)
+                                                .addRequestHeader("X-Test-Type", "fast-response")
+                                                .circuitBreaker(config -> config
+                                                        .setName("fast-test-cb")
+                                                        .setFallbackUri("/gateway/fallback")
+                                                )
+                                ).uri("https://httpbin.org")
+                )
+
+                // 에러 테스트용 라우팅
+                .route("error-test-route", r -> r
+                        .path("/api/error/**")
+                        .filters(f -> f
+                                .stripPrefix(2)
+                                .addRequestHeader("X-Test-Type", "error-handling")
+                        )
+                        .uri("https://httpbin.org/status/500"))
                 .build();
     }
 
