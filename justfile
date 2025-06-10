@@ -62,6 +62,15 @@ boot-run:
 boot-jar:
     ./gradlew bootJar
 
+boot-run-dev:
+    ./gradlew bootRun --args='--spring.profiles.active=dev'
+
+boot-run-prod:
+    ./gradlew bootRun --args='--spring.profiles.active=prod'
+
+boot-run-test:
+    ./gradlew bootRun --args='--spring.profiles.active=test'
+
 boot-run-profile PROFILE:
     ./gradlew bootRun --args='--spring.profiles.active={{PROFILE}}'
 
